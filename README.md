@@ -14,40 +14,47 @@ Model card on Hugging Face: [makactuary/cafepolice-graybox-meta](https://hugging
 
 ## Data
 
-The engine tries `freMTPL2` (open, CC0) for the frequency side at runtime. Because freMTPL2's severity is a separate file that cannot be joined at policy level, the end-to-end demo runs on **clearly-labelled synthetic data** (seed 42, 20,000 policies). Nothing is presented as real; the data source is printed in every run.
+`freMTPL2` (open, CC0) drives the model: **frequency** from `freMTPL2freq` (ClaimNb / Exposure, downsampled to 50,000 policies) and **severity** from `freMTPL2sev` (ClaimAmount, joined to policy features via `IDpol`, 26,444 claims). If the download fails the engine falls back to **clearly-labelled synthetic data** (seed 42). The data source is printed in every run.
 
 ## Method
 
 1. **Frequency**: `PoissonRegressor(alpha, log-link)` on claim counts with exposure weights.
 2. **Severity**: `GammaRegressor(alpha, log-link)` on positive claim amounts.
 3. **Pure premium**: expected frequency × expected severity.
-4. **Metaheuristic**: GA over `[log10(alpha_freq), log10(alpha_sev)]` ∈ [−6, 3], tournament selection, blend crossover, Gaussian mutation, 12 generations × 20 individuals.
+4. **Metaheuristic**: GA over `[log10(alpha_freq), log10(alpha_sev)]` ∈ [−6, 3], tournament selection, blend crossover, Gaussian mutation, 10 generations × 16 individuals.
 5. **Test**: Poisson deviance, MSE and MAE on the held-out 15%.
 
-## Results (synthetic demo, seed 42)
+## Results (freMTPL2, CC0)
 
 | | |
 |---|---|
-| GA best alphas | frequency 8.06, severity 0.23 |
-| Claim frequency (test) | 4.51% |
-| Frequency Poisson deviance (test) | 0.2297 |
-| Severity MAE / MSE (test) | 1,235 / 2.65×10⁶ |
-| Pure premium MAE / MSE (test) | 168.7 / 4.03×10⁵ |
-| Mean pure premium (test) | 76.9 |
+| Data | freMTPL2: frequency 50,000 (subsample), severity 26,444 |
+| GA best alphas | frequency 0.0034, severity 0.803 |
+| Claim frequency (test, annualised) | 24.6% |
+| Frequency Poisson deviance (test) | 0.3353 |
+| Severity MAE / MSE (test) | 1,883 / 1.05×10⁸ |
+| Mean pure premium (test) | 131.2 |
+
+Charts: `outputs/charts/01_frekans_fit.png`, `02_siddet_fit.png`, `03_ga_yakinsama.png`. Full numbers in `outputs/metrics.json` and `outputs/sonuc_tablosu.csv`.
 
 ## Run
 
 ```bash
 pip install -r requirements.txt
 python src/graybox_engine.py --test     # offline, deterministic self-check
-python src/graybox_engine.py            # full run + JSON summary
-python src/graybox_engine.py --real     # try freMTPL2 frequency (needs network)
+python src/graybox_engine.py            # real freMTPL2, fallback synthetic
+python src/graybox_engine.py --real     # force freMTPL2
+python article/build_article.py         # makale.md -> makale.docx
 ```
+
+## Article
+
+`article/makale.md` (Turkish, 3 pages), `article/makale.docx` and `article/makale.pdf`, signed *Mehmet Ali Kaya*.
 
 ## Limitations
 
-Synthetic demo data (labelled); a single frequency–severity GLM pair without trend, dispersion or exposure-varying covariates beyond the offset; GA is a heuristic, not a proof of global optimality. A method illustration, not a pricing recommendation.
+A single frequency–severity GLM pair without trend or dispersion covariates beyond the offset; the frequency side is downsampled for runtime; GA is a heuristic, not a proof of global optimality. A method illustration, not a pricing recommendation.
 
 ## Licence
 
-Code: MIT.
+Code: MIT. Data: freMTPL2 (CC0, openml).

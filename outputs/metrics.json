@@ -1,0 +1,80 @@
+{
+  "veri": "freMTPL2 (CC0, openml) — frekans alt-örnek n=50000, şiddet n=26444",
+  "n_frekans": 50000,
+  "n_siddet": 26444,
+  "split": {
+    "train_oran": 0.7,
+    "val_oran": 0.15,
+    "test_oran": 0.15,
+    "n_train_freq": 34999,
+    "n_val_freq": 7501,
+    "n_test_freq": 7500,
+    "n_test_siddet": 3967
+  },
+  "ga": {
+    "alpha_frekans": 0.0033675893516987494,
+    "alpha_siddet": 0.8028317144735342,
+    "nesil": 10,
+    "populasyon": 16,
+    "log10_alpha_frekans": -2.4726808723874836,
+    "log10_alpha_siddet": -0.09537547979591077,
+    "yakinsama": [
+      [
+        0,
+        3.114011
+      ],
+      [
+        1,
+        3.101316
+      ],
+      [
+        2,
+        3.100747
+      ],
+      [
+        3,
+        3.100254
+      ],
+      [
+        4,
+        3.100254
+      ],
+      [
+        5,
+        3.100254
+      ],
+      [
+        6,
+        3.100254
+      ],
+      [
+        7,
+        3.100216
+      ],
+      [
+        8,
+        3.100216
+      ],
+      [
+        9,
+        3.100216
+      ],
+      [
+        10,
+        3.100216
+      ]
+    ]
+  },
+  "metrikler": {
+    "frekans_poisson_deviance_test": 0.335316,
+    "siddet_mse_test": 105475321.0606,
+    "siddet_mae_test": 1883.1313,
+    "saf_prim_ort_test": 131.1627,
+    "hasar_sikligi_test": 0.2455
+  },
+  "grafikler": {
+    "01_frekans_fit": "F:\\Quantix_Master_Vault\\cafepolice-graybox-meta\\outputs\\charts\\01_frekans_fit.png",
+    "02_siddet_fit": "F:\\Quantix_Master_Vault\\cafepolice-graybox-meta\\outputs\\charts\\02_siddet_fit.png",
+    "03_ga_yakinsama": "F:\\Quantix_Master_Vault\\cafepolice-graybox-meta\\outputs\\charts\\03_ga_yakinsama.png"
+  }
+}

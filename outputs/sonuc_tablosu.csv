@@ -1,0 +1,14 @@
+alan,deger
+veri,"freMTPL2 (CC0, openml) — frekans alt-örnek n=50000, şiddet n=26444"
+frekans_satir,50000
+siddet_satir,26444
+split_train,0.7
+split_val,0.15
+split_test,0.15
+alpha_frekans,0.0033675893516987494
+alpha_siddet,0.8028317144735342
+frekans_poisson_deviance_test,0.335316
+siddet_mae_test,1883.1313
+siddet_mse_test,105475321.0606
+saf_prim_ort_test,131.1627
+hasar_sikligi_test,0.2455
