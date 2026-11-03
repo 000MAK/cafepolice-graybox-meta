@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""build_article.py — article/makale.md -> article/makale.docx (python-docx)."""
+"""build_article.py — article/makale.md -> article/makale.docx (python-docx).
+
+Destek: başlık/bölüm/altbaşlık/lede/paragraf/madde, **kalın**, *italik*,
+tablo, $$...$$ denklem (ortalanmış), ![altyazı](yol) resim (sayfaya sığdırılır).
+"""
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt, RGBColor
 
 KOK = Path(__file__).resolve().parent
 MD = KOK / "makale.md"
 DOCX = KOK / "makale.docx"
 
 BASLIK_RENK = RGBColor(0x1F, 0x4E, 0x79)
+SAYFA_GENISLIK = Inches(5.9)  # A4, 2.3 cm kenar boşluğu yaklaşık
 
 
 def _satir_meta(satir: str):
@@ -30,7 +35,6 @@ def _satir_meta(satir: str):
 
 
 def _sade(metin: str) -> str:
-    """Markdown vurgularını düz metne çevir (tablo hücreleri/bağlantılar için)."""
     metin = re.sub(r"\*\*(.+?)\*\*", r"\1", metin)
     metin = re.sub(r"\*(.+?)\*", r"\1", metin)
     metin = re.sub(r"\[(.+?)\]\((.+?)\)", r"\1", metin)
@@ -39,8 +43,7 @@ def _sade(metin: str) -> str:
 
 
 def _zengin(paragraf, metin: str, temel_boyut: int = 11):
-    """**kalın** ve *italik* destekli paragraf doldur."""
-    for i, parca in enumerate(re.split(r"(\*\*.+?\*\*|\*.+?\*)", metin)):
+    for parca in re.split(r"(\*\*.+?\*\*|\*.+?\*)", metin):
         if not parca:
             continue
         if parca.startswith("**") and parca.endswith("**"):
@@ -52,6 +55,27 @@ def _zengin(paragraf, metin: str, temel_boyut: int = 11):
         run.font.size = Pt(temel_boyut)
 
 
+def _resim(doc, yol: str, altyazi: str) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    resim = (KOK / yol).resolve()
+    if resim.exists():
+        p.add_run().add_picture(str(resim), width=SAYFA_GENISLIK)
+    else:
+        p.add_run(f"[resim eksik: {resim}]").italic = True
+    if altyazi:
+        c = doc.add_paragraph(); c.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r = c.add_run(altyazi); r.italic = True; r.font.size = Pt(9)
+
+
+def _denklem(doc, icerik: str) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(icerik)
+    run.italic = True
+    run.font.size = Pt(11)
+
+
 def insa(md: Path, docx: Path) -> None:
     doc = Document()
     satirlar = md.read_text(encoding="utf-8").splitlines()
@@ -60,6 +84,21 @@ def insa(md: Path, docx: Path) -> None:
     while i < len(satirlar):
         satir = satirlar[i].rstrip()
         if not satir.strip():
+            i += 1
+            continue
+
+        # denklem $$ ... $$
+        if satir.strip().startswith("$$"):
+            icerik = satir.strip().strip("$").strip()
+            if icerik:
+                _denklem(doc, icerik)
+            i += 1
+            continue
+
+        # resim ![altyazı](yol)
+        m = re.match(r"!\[(.*?)\]\((.*?)\)", satir.strip())
+        if m:
+            _resim(doc, m.group(2), m.group(1))
             i += 1
             continue
 

@@ -35,6 +35,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import GammaRegressor, PoissonRegressor
 from sklearn.metrics import (
     mean_absolute_error,
@@ -102,7 +103,7 @@ def synthetic_data(n: int = 20000, seed: int = SEED) -> tuple[pd.DataFrame, pd.D
     return freq_df, sev_df, f"sentetik-demo (seed={seed})"
 
 
-def load_fremtpl2(subsample: int = 50000) -> tuple[pd.DataFrame, pd.DataFrame, str]:
+def load_fremtpl2(subsample: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     """freMTPL2 (açık, CC0) — frekans (ClaimNb/Exposure) + şiddet (ClaimAmount).
 
     Şiddet verisi yalnız IDpol+ClaimAmount taşır; özellikler frekans verisinden
@@ -117,12 +118,13 @@ def load_fremtpl2(subsample: int = 50000) -> tuple[pd.DataFrame, pd.DataFrame, s
     # şiddet: TÜM frekans özellikleriyle birleştir (alt-örnek DEĞİL, aksi halde NaN)
     sev = sev.merge(freq[["IDpol"] + OZELLIKLER], on="IDpol", how="left")
     sev = sev.dropna(subset=OZELLIKLER + ["ClaimAmount"])
-    # frekans: alt-örnek (dürüst etiket)
-    freq = freq.sample(n=min(subsample, len(freq)), random_state=SEED)
+    # frekans: istenirse alt-örnek (dürüst etiket)
+    if subsample is not None:
+        freq = freq.sample(n=min(subsample, len(freq)), random_state=SEED)
     freq_df = freq[OZELLIKLER + ["Exposure", "ClaimNb"]].copy()
     sev_df = sev[OZELLIKLER + ["ClaimAmount"]].copy()
     sev_df = sev_df[sev_df["ClaimAmount"] > 0]
-    etiket = (f"freMTPL2 (CC0, openml) — frekans alt-örnek n={len(freq_df)}, "
+    etiket = (f"freMTPL2 (CC0, openml) — frekans TAM n={len(freq_df)}, "
               f"şiddet n={len(sev_df)}")
     return freq_df, sev_df, etiket
 
@@ -221,6 +223,79 @@ def ga_optimize(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
         "log10_alpha_frekans": float(en_iyi[0]),
         "log10_alpha_siddet": float(en_iyi[1]),
         "yakinsama": [[int(g), round(float(f), 6)] for g, f in izleme],
+        "en_iyi_deviance": round(float(hedef(en_iyi)), 6),
+        "evals": len(_cache),
+    }
+
+
+def grid_baseline(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
+                  Xva, yf_va, w_va, Xs_va, ys_va,
+                  boyut: int = 5) -> dict:
+    """Kıyaslama: log-aralıklı sabit GRID taraması (GA'ya alternatif, aynı validation)."""
+    import itertools
+    vals = np.linspace(-3.0, 3.0, boyut)
+    best = None
+    evals = 0
+    for af_log, ase_log in itertools.product(vals, vals):
+        af, ase = 10.0 ** af_log, 10.0 ** ase_log
+        mf = _fit_freq(Xtr, yf_tr, w_tr, af)
+        fdev = float(mean_poisson_deviance(yf_va, mf.predict(Xva) * w_va))
+        ms = _fit_sev(Xs_tr, ys_tr, ase)
+        gdev = float(mean_gamma_deviance(ys_va, ms.predict(Xs_va)))
+        d = fdev + gdev
+        evals += 1
+        if best is None or d < best[0]:
+            best = (d, af, ase)
+    return {"deviance": round(float(best[0]), 6),
+            "alpha_frekans": float(best[1]), "alpha_siddet": float(best[2]),
+            "evals": evals}
+
+
+def gbm_baseline(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
+                 Xte, yf_te, w_te, Xs_te, ys_te) -> dict:
+    """Kara kutu kıyaslama: Gradient Boosting (mini grid ile ADİL ayar).
+
+    Graybox'ın "black" tarafı. Frekans için hasar ORANI'na, şiddet için tutara
+    GBM fit eder; (max_depth × n_estimators) küçük gridinde en iyiyi seçer ve
+    aynı test diliminde GLM ile kıyaslanmak üzere metrik üretir.
+    """
+    def _best_freq():
+        best = None
+        for it in (200, 400):
+            for leaf in (15, 31):
+                g = HistGradientBoostingRegressor(random_state=SEED, max_iter=it,
+                                                  max_leaf_nodes=leaf, learning_rate=0.05)
+                g.fit(Xtr, yf_tr / w_tr)
+                rate = np.clip(g.predict(Xte), 1e-6, None)
+                dev = float(mean_poisson_deviance(yf_te, rate * w_te))
+                if best is None or dev < best[0]:
+                    best = (dev, leaf, it)
+        return best
+
+    def _best_sev():
+        best = None
+        for it in (200, 400):
+            for leaf in (15, 31):
+                g = HistGradientBoostingRegressor(random_state=SEED, max_iter=it,
+                                                  max_leaf_nodes=leaf, learning_rate=0.05)
+                g.fit(Xs_tr, ys_tr)
+                mae = float(mean_absolute_error(ys_te, g.predict(Xs_te)))
+                if best is None or mae < best[0]:
+                    best = (mae, leaf, it)
+        return best
+
+    fdev, fl, fi = _best_freq()
+    smae, sl, si = _best_sev()
+    gs = HistGradientBoostingRegressor(random_state=SEED, max_iter=si,
+                                       max_leaf_nodes=sl, learning_rate=0.05)
+    gs.fit(Xs_tr, ys_tr)
+    sev_gbm = gs.predict(Xs_te)
+    return {
+        "frekans_poisson_deviance_test": round(fdev, 6),
+        "frekans_leaf": fl, "frekans_iter": fi,
+        "siddet_mse_test": round(float(mean_squared_error(ys_te, sev_gbm)), 4),
+        "siddet_mae_test": round(smae, 4),
+        "siddet_leaf": sl, "siddet_iter": si,
     }
 
 
@@ -332,9 +407,13 @@ def run(use_real: bool = True, seed: int = SEED) -> dict:
 
     ga = ga_optimize(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
                      Xva, yf_va, w_va, Xs_va, ys_va, seed=seed)
+    grid = grid_baseline(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
+                         Xva, yf_va, w_va, Xs_va, ys_va)
 
     mf = _fit_freq(Xtr, yf_tr, w_tr, ga["alpha_frekans"])
     ms = _fit_sev(Xs_tr, ys_tr, ga["alpha_siddet"])
+    gbm = gbm_baseline(Xtr, yf_tr, w_tr, Xs_tr, ys_tr,
+                       Xte, yf_te, w_te, Xs_te, ys_te)
 
     rate_te = mf.predict(Xte)                       # beklenen frekans oranı
     freq_pred_te = rate_te * w_te                   # beklenen hasar sayısı
@@ -361,6 +440,8 @@ def run(use_real: bool = True, seed: int = SEED) -> dict:
                   "n_train_freq": int(len(Xtr)), "n_val_freq": int(len(Xva)),
                   "n_test_freq": int(len(Xte)), "n_test_siddet": int(len(Xs_te))},
         "ga": ga,
+        "grid": grid,
+        "gbm": gbm,
         "metrikler": metrikler,
         "grafikler": yollar,
     }

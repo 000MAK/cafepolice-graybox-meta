@@ -1,76 +1,93 @@
 {
-  "veri": "freMTPL2 (CC0, openml) — frekans alt-örnek n=50000, şiddet n=26444",
-  "n_frekans": 50000,
+  "veri": "freMTPL2 (CC0, openml) — frekans TAM n=678013, şiddet n=26444",
+  "n_frekans": 678013,
   "n_siddet": 26444,
   "split": {
     "train_oran": 0.7,
     "val_oran": 0.15,
     "test_oran": 0.15,
-    "n_train_freq": 34999,
-    "n_val_freq": 7501,
-    "n_test_freq": 7500,
+    "n_train_freq": 474609,
+    "n_val_freq": 101702,
+    "n_test_freq": 101702,
     "n_test_siddet": 3967
   },
   "ga": {
-    "alpha_frekans": 0.0033675893516987494,
-    "alpha_siddet": 0.8028317144735342,
+    "alpha_frekans": 0.0056692624557301554,
+    "alpha_siddet": 0.8576633085242923,
     "nesil": 10,
     "populasyon": 16,
-    "log10_alpha_frekans": -2.4726808723874836,
-    "log10_alpha_siddet": -0.09537547979591077,
+    "log10_alpha_frekans": -2.246473437093187,
+    "log10_alpha_siddet": -0.06668316896663164,
     "yakinsama": [
       [
         0,
-        3.114011
+        3.117885
       ],
       [
         1,
-        3.101316
+        3.108176
       ],
       [
         2,
-        3.100747
+        3.108176
       ],
       [
         3,
-        3.100254
+        3.107519
       ],
       [
         4,
-        3.100254
+        3.107408
       ],
       [
         5,
-        3.100254
+        3.107408
       ],
       [
         6,
-        3.100254
+        3.107408
       ],
       [
         7,
-        3.100216
+        3.107396
       ],
       [
         8,
-        3.100216
+        3.107396
       ],
       [
         9,
-        3.100216
+        3.107396
       ],
       [
         10,
-        3.100216
+        3.107396
       ]
-    ]
+    ],
+    "en_iyi_deviance": 3.107396,
+    "evals": 156
+  },
+  "grid": {
+    "deviance": 3.108115,
+    "alpha_frekans": 0.001,
+    "alpha_siddet": 1.0,
+    "evals": 25
+  },
+  "gbm": {
+    "frekans_poisson_deviance_test": 0.359598,
+    "frekans_leaf": 15,
+    "frekans_iter": 200,
+    "siddet_mse_test": 106350405.0277,
+    "siddet_mae_test": 1911.5985,
+    "siddet_leaf": 31,
+    "siddet_iter": 200
   },
   "metrikler": {
-    "frekans_poisson_deviance_test": 0.335316,
-    "siddet_mse_test": 105475321.0606,
-    "siddet_mae_test": 1883.1313,
-    "saf_prim_ort_test": 131.1627,
-    "hasar_sikligi_test": 0.2455
+    "frekans_poisson_deviance_test": 0.330857,
+    "siddet_mse_test": 105471520.5787,
+    "siddet_mae_test": 1883.7752,
+    "saf_prim_ort_test": 137.3249,
+    "hasar_sikligi_test": 0.2815
   },
   "grafikler": {
     "01_frekans_fit": "F:\\Quantix_Master_Vault\\cafepolice-graybox-meta\\outputs\\charts\\01_frekans_fit.png",
